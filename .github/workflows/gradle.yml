@@ -1,0 +1,23 @@
+name: Checking with Selenide
+
+on: [push]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+
+      - name: Build and run tests
+        run: |
+          java -jar ${{ github.workspace }}/artifacts/app-card-delivery.jar &
+          echo "Sleeping for 10"
+          sleep 50
+          chmod +x gradlew
+          ./gradlew test --info -Dselenide.headless=true
+
+
+
