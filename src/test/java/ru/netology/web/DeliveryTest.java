@@ -1,55 +1,136 @@
 package ru.netology.web;
 
-import com.codeborne.selenide.SelenideElement;
+import com.codeborne.selenide.Condition;
 import org.junit.jupiter.api.Test;
 
-import static com.codeborne.selenide.Condition.exactText;
-import static com.codeborne.selenide.Selenide.$;
-import static com.codeborne.selenide.Selenide.open;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
+import static com.codeborne.selenide.Condition.*;
+import static com.codeborne.selenide.Selectors.withText;
+import static com.codeborne.selenide.Selenide.*;
 
 public class DeliveryTest {
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
+    // Корректные данные
+    private final String city = "Севастополь";
+    private final LocalDate date = LocalDate.now().plusDays(5);
+    private final String name = "Иванов Иван";
+    private final String phone = "+79156757490";
+
+    /**
+     * Положительный сценарий:
+     * отправка полностью заполненной формы с корректными значениями
+     * */
     @Test
-    void checkFormTest() {
+    void shouldSubmitWithValidData() {
         open("http://localhost:9999");
-        SelenideElement form = $(".form");
-        form.$("[data-test-id=name] input").setValue("Иванов Иван");
-        form.$("[data-test-id=phone] input").setValue("+79101234567");
-        form.$("[data-test-id=agreement]").click();
-        form.$(".button").click();
-        $("[data-test-id=order-success]").shouldHave(exactText("Ваша заявка успешно отправлена! Наш менеджер свяжется с вами в ближайшее время."));
+
+        $("[data-test-id=city] input").setValue(city);
+        $("[data-test-id=date] input").sendKeys(formatter.format(date));
+        $("[data-test-id=name] input").setValue(name);
+        $("[data-test-id=phone] input").setValue(phone);
+        $("[data-test-id=agreement]").click();
+        $(".button").click();
+
+        // Assertion: нужно ок. 15 с,
+        // чтобы появился div c сообщением об успешной заявке,
+        // поэтому нужен таймаут
+        Duration timeout = Duration.ofSeconds(15);
+        $(withText("Успешно!")).shouldBe(visible, timeout);
     }
 
+    /**
+     * Негативный сценарий: некорректный город
+     * */
     @Test
-    void checkFormWithCheckboxTest() {
+    void shouldSubmitWithIncorrectCity() {
         open("http://localhost:9999");
-        SelenideElement form = $(".form");
-        form.$("[data-test-id=name] input").setValue("Иванов Иван");
-        form.$("[data-test-id=phone] input").setValue("+79101234567");
-        form.$(".checkbox__box").click();
-        form.$(".button").click();
-        $("[data-test-id=order-success]").shouldHave(exactText("Ваша заявка успешно отправлена! Наш менеджер свяжется с вами в ближайшее время."));
+
+        $("[data-test-id=city] input").setValue("SSSS");
+        $("[data-test-id=date] input").sendKeys(formatter.format(date));
+        $("[data-test-id=name] input").setValue(name);
+        $("[data-test-id=phone] input").setValue(phone);
+        $("[data-test-id=agreement]").click();
+        $(".button").click();
+
+        //Assertion: появляется сообщение об ошибке
+        $("[data-test-id=city] .input__sub").shouldBe(exist);
     }
 
+    /**
+     * Негативный сценарий: некорректная дата доставки (5 дней назад)
+     * */
     @Test
-    void checkNameTest() {
+    void shouldSubmitWithIncorrectDate() {
         open("http://localhost:9999");
-        SelenideElement form = $(".form");
-        form.$("[data-test-id=name] input").setValue("Ivanov Ivan");
-        form.$("[data-test-id=phone] input").setValue("+79101234567");
-        form.$("[data-test-id=agreement]").click();
-        form.$(".button").click();
-        $(".input__sub").shouldHave(exactText("Имя и Фамилия указаные неверно. Допустимы только русские буквы, пробелы и дефисы."));
+
+        $("[data-test-id=city] input").setValue(city);
+        LocalDate pastDate = LocalDate.now().minusDays(5);
+        $("[data-test-id=date] input").doubleClick().sendKeys(formatter.format(pastDate));
+        $("[data-test-id=name] input").setValue(name);
+        $("[data-test-id=phone] input").setValue(phone);
+        $("[data-test-id=agreement]").click();
+        $(".button").click();
+
+        //Assertion: появляется сообщение об ошибке
+        $("[data-test-id=date] .input__sub").shouldBe(exist);
     }
 
+    /**
+     * Негативный сценарий: некорректные имя с фамилией
+     * */
     @Test
-    void checkPhoneNumberTest() {
+    void shouldSubmitWithIncorrectName() {
         open("http://localhost:9999");
-        SelenideElement form = $(".form");
-        form.$("[data-test-id=name] input").setValue("Иванов Иван");
-        form.$("[data-test-id=phone] input").setValue("+76753738");
-        form.$("[data-test-id=agreement]").click();
-        form.$(".button").click();
-        $("[data-test-id=\"phone\"] .input__sub").shouldHave(exactText("Телефон указан неверно. Должно быть 11 цифр, например, +79012345678."));
+
+        $("[data-test-id=city] input").setValue(city);
+        $("[data-test-id=date] input").sendKeys(formatter.format(date));
+
+        $("[data-test-id=name] input").setValue("Ivanov Ivan");
+        $("[data-test-id=phone] input").setValue(phone);
+        $("[data-test-id=agreement]").click();
+        $(".button").click();
+
+        // Assertion: появляется сообщение об ошибке
+        $("[data-test-id=name] .input__sub").shouldBe(exist);
+    }
+
+    /**
+     * Негативный сценарий: некорректный номер телефона
+     * */
+    @Test
+    void shouldSubmitWithIncorrectPhone() {
+        open("http://localhost:9999");
+
+        $("[data-test-id=city] input").setValue(city);
+        $("[data-test-id=date] input").sendKeys(formatter.format(date));
+        $("[data-test-id=name] input").setValue(name);
+        $("[data-test-id=phone] input").setValue("6757645");
+        $("[data-test-id=agreement]").click();
+        $(".button").click();
+
+        //Assertion: появляется сообщение об ошибке
+        $("[data-test-id=phone] .input__sub").shouldBe(exist);
+    }
+
+    /**
+     * Негативный сценарий: без чекбокса
+     * */
+    @Test
+    void shouldSubmitWithoutAgreement() {
+        open("http://localhost:9999");
+
+        $("[data-test-id=city] input").setValue(city);
+        $("[data-test-id=date] input").sendKeys(formatter.format(date));
+        $("[data-test-id=name] input").setValue(name);
+        $("[data-test-id=phone] input").setValue(phone);
+        $(".button").click();
+
+        //Assertion: у span появляется класс input_invalid, =>, текст у чекбокса становится красным
+        $(".input_invalid").shouldBe(exist);
     }
 
 }
